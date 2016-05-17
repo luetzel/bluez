@@ -20,7 +20,7 @@ In order to compile Bluetooth utilities you need following software packages:
 	- readline (command line clients)
 
 To configure on a Raspberry Pi run:
-	sudo ./configure --prefix=/usr --mandir=/usr/share/man --sysconfdir=/etc \
+	./configure --prefix=/usr --mandir=/usr/share/man --sysconfdir=/etc \
                          --localstatedir=/var --enable-sixaxis
 
 Configure automatically searches for all required components and packages.
