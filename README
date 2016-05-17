@@ -12,6 +12,12 @@ This is a fork of BlueZ Bluetooth protocol stack for RetroPie.
 This version on BlueZ was patched to support PS3 controllers, including
 Gasia/Shanwan clones.
 
+For PS3 support, patches from OpenELEC.tv
+
+https://github.com/OpenELEC/OpenELEC.tv/tree/openelec-7.0/packages/network/bluez/patches
+
+have been applied.
+
 In order to compile Bluetooth utilities you need following software packages:
 	- GCC compiler
 	- GLib library
