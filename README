@@ -8,6 +8,9 @@ Copyright (C) 2002-2010  Marcel Holtmann <marcel@holtmann.org>
 
 Compilation and installation
 ============================
+This is a fork of BlueZ Bluetooth protocol stack for RetroPie.
+This version on BlueZ was patched to support PS3 controllers, including
+Gasia/Shanwan clones.
 
 In order to compile Bluetooth utilities you need following software packages:
 	- GCC compiler
@@ -16,14 +19,24 @@ In order to compile Bluetooth utilities you need following software packages:
 	- udev library (optional)
 	- readline (command line clients)
 
-To configure run:
-	./configure --prefix=/usr --mandir=/usr/share/man \
-				--sysconfdir=/etc --localstatedir=/var
+To configure on a Raspberry Pi run:
+	sudo ./configure --prefix=/usr --mandir=/usr/share/man --sysconfdir=/etc \
+                         --localstatedir=/var --enable-sixaxis
 
 Configure automatically searches for all required components and packages.
 
 To compile and install run:
 	make && make install
+
+
+Pairing with PS3 Controllers
+============================
+In order to pair the PS3 controller, first connect it using an USB cable and
+wait until it rumbles (check with dmesg if it was recognized as input device).
+
+Then, run 'sudo sixpair', which is part of QtsixA (http://qtsixa.sourceforge.net/).
+Afterwards, disconnect the USB-cable. For the first controller, LED1 should light
+up if pairing was successful. For the second, LED2 and so on ...
 
 
 Configuration and options
