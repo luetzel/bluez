@@ -757,7 +757,7 @@ am__monitor_btmon_SOURCES_DIST = monitor/main.c monitor/bt.h \
 	monitor/bnep.c monitor/uuid.h monitor/uuid.c monitor/hwdb.h \
 	monitor/hwdb.c monitor/keys.h monitor/keys.c monitor/analyze.h \
 	monitor/analyze.c monitor/intel.h monitor/intel.c \
-	monitor/broadcom.h monitor/broadcom.c
+	monitor/broadcom.h monitor/broadcom.c monitor/tty.h
 @MONITOR_TRUE@am_monitor_btmon_OBJECTS = monitor/main.$(OBJEXT) \
 @MONITOR_TRUE@	monitor/display.$(OBJEXT) \
 @MONITOR_TRUE@	monitor/hcidump.$(OBJEXT) \
@@ -2236,7 +2236,8 @@ EXTRA_DIST = src/bluetooth.service.in src/org.bluez.service \
 	doc/thermometer-api.txt doc/cyclingspeed-api.txt \
 	doc/gatt-api.txt doc/advertising-api.txt doc/obex-api.txt \
 	doc/obex-agent-api.txt doc/pics-opp.txt doc/pixit-opp.txt \
-	doc/pts-opp.txt tools/magic.btsnoop $(manual_pages:.1=.txt)
+	doc/pts-opp.txt doc/btsnoop.txt tools/magic.btsnoop \
+	$(manual_pages:.1=.txt)
 include_HEADERS = $(am__append_1)
 AM_CFLAGS = $(WARNING_CFLAGS) $(MISC_CFLAGS) $(am__append_32) \
 	@DBUS_CFLAGS@ @GLIB_CFLAGS@ $(am__empty)
@@ -2266,7 +2267,7 @@ extra_sources = lib/uuid.c
 local_headers = $(foreach file,$(lib_headers), lib/bluetooth/$(notdir $(file)))
 BUILT_SOURCES = $(local_headers) src/builtin.h obexd/src/builtin.h
 @LIBRARY_TRUE@lib_libbluetooth_la_SOURCES = $(lib_headers) $(lib_sources)
-@LIBRARY_TRUE@lib_libbluetooth_la_LDFLAGS = $(AM_LDFLAGS) -version-info 21:11:18
+@LIBRARY_TRUE@lib_libbluetooth_la_LDFLAGS = $(AM_LDFLAGS) -version-info 21:12:18
 @LIBRARY_TRUE@lib_libbluetooth_la_DEPENDENCIES = $(local_headers)
 lib_libbluetooth_internal_la_SOURCES = $(lib_headers) $(lib_sources) \
 					$(extra_headers) $(extra_sources)
@@ -2296,7 +2297,8 @@ shared_sources = src/shared/io.h src/shared/timeout.h \
 			src/shared/gatt-client.h src/shared/gatt-client.c \
 			src/shared/gatt-server.h src/shared/gatt-server.c \
 			src/shared/gatt-db.h src/shared/gatt-db.c \
-			src/shared/gap.h src/shared/gap.c
+			src/shared/gap.h src/shared/gap.c \
+			src/shared/tty.h
 
 src_libshared_glib_la_SOURCES = $(shared_sources) \
 				src/shared/io-glib.c \
@@ -2465,7 +2467,8 @@ unit_tests = $(am__append_35) unit/test-eir unit/test-uuid \
 @MONITOR_TRUE@				monitor/keys.h monitor/keys.c \
 @MONITOR_TRUE@				monitor/analyze.h monitor/analyze.c \
 @MONITOR_TRUE@				monitor/intel.h monitor/intel.c \
-@MONITOR_TRUE@				monitor/broadcom.h monitor/broadcom.c
+@MONITOR_TRUE@				monitor/broadcom.h monitor/broadcom.c \
+@MONITOR_TRUE@				monitor/tty.h
 
 @MONITOR_TRUE@monitor_btmon_LDADD = lib/libbluetooth-internal.la \
 @MONITOR_TRUE@				src/libshared-mainloop.la @UDEV_LIBS@

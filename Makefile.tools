@@ -8,7 +8,7 @@ client_bluetoothctl_SOURCES = client/main.c \
 					client/gatt.h client/gatt.c \
 					monitor/uuid.h monitor/uuid.c
 client_bluetoothctl_LDADD = gdbus/libgdbus-internal.la @GLIB_LIBS@ @DBUS_LIBS@ \
-				-lreadline -lncurses
+				-lreadline
 endif
 
 if MONITOR
@@ -36,7 +36,8 @@ monitor_btmon_SOURCES = monitor/main.c monitor/bt.h \
 				monitor/keys.h monitor/keys.c \
 				monitor/analyze.h monitor/analyze.c \
 				monitor/intel.h monitor/intel.c \
-				monitor/broadcom.h monitor/broadcom.c
+				monitor/broadcom.h monitor/broadcom.c \
+				monitor/tty.h
 monitor_btmon_LDADD = lib/libbluetooth-internal.la \
 				src/libshared-mainloop.la @UDEV_LIBS@
 endif
@@ -350,12 +351,12 @@ attrib_gatttool_SOURCES = attrib/gatttool.c attrib/att.c attrib/gatt.c \
 				attrib/utils.c src/log.c client/display.c \
 				client/display.h
 attrib_gatttool_LDADD = lib/libbluetooth-internal.la \
-			src/libshared-glib.la @GLIB_LIBS@ -lreadline -lncurses
+			src/libshared-glib.la @GLIB_LIBS@ -lreadline
 
 tools_obex_client_tool_SOURCES = $(gobex_sources) $(btio_sources) \
 						tools/obex-client-tool.c
 tools_obex_client_tool_LDADD = lib/libbluetooth-internal.la \
-						@GLIB_LIBS@ -lreadline -lncurses
+						@GLIB_LIBS@ -lreadline
 
 tools_obex_server_tool_SOURCES = $(gobex_sources) $(btio_sources) \
 						tools/obex-server-tool.c
@@ -364,16 +365,16 @@ tools_obex_server_tool_LDADD = lib/libbluetooth-internal.la @GLIB_LIBS@
 tools_bluetooth_player_SOURCES = tools/bluetooth-player.c \
 				client/display.h client/display.c
 tools_bluetooth_player_LDADD = gdbus/libgdbus-internal.la \
-				@GLIB_LIBS@ @DBUS_LIBS@ -lreadline -lncurses
+				@GLIB_LIBS@ @DBUS_LIBS@ -lreadline
 
 tools_obexctl_SOURCES = tools/obexctl.c \
 				client/display.h client/display.c
 tools_obexctl_LDADD = gdbus/libgdbus-internal.la \
-				@GLIB_LIBS@ @DBUS_LIBS@ -lreadline -lncurses
+				@GLIB_LIBS@ @DBUS_LIBS@ -lreadline
 
 tools_btmgmt_SOURCES = tools/btmgmt.c src/uuid-helper.c client/display.c
 tools_btmgmt_LDADD = lib/libbluetooth-internal.la src/libshared-mainloop.la \
-				-lreadline -lncurses
+				-lreadline
 endif
 
 if EXPERIMENTAL

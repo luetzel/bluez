@@ -34,6 +34,11 @@ Configure automatically searches for all required components and packages.
 To compile and install run:
 	make && make install
 
+After installation, run:
+	systemctl daemon-reload
+	sudo service bluetooh restart
+
+Reboot your Raspberry Pi in case that the PS3 controller is unable to pair.
 
 Pairing with PS3 Controllers
 ============================

@@ -35,6 +35,10 @@
 #include <sys/time.h>
 #include <sys/socket.h>
 #include <sys/un.h>
+#include <sys/types.h>
+#include <sys/stat.h>
+#include <termios.h>
+#include <fcntl.h>
 
 #include "lib/bluetooth.h"
 #include "lib/hci.h"
@@ -48,6 +52,7 @@
 #include "packet.h"
 #include "hcidump.h"
 #include "ellisys.h"
+#include "tty.h"
 #include "control.h"
 
 static struct btsnoop *btsnoop_file = NULL;
@@ -965,7 +970,7 @@ static void data_callback(int fd, uint32_t events, void *user_data)
 							data->buf, pktlen);
 			break;
 		case HCI_CHANNEL_MONITOR:
-			btsnoop_write_hci(btsnoop_file, tv, index, opcode,
+			btsnoop_write_hci(btsnoop_file, tv, index, opcode, 0,
 							data->buf, pktlen);
 			ellisys_inject_hci(tv, index, opcode,
 							data->buf, pktlen);
@@ -1058,23 +1063,25 @@ static void client_callback(int fd, uint32_t events, void *user_data)
 
 	data->offset += len;
 
-	if (data->offset > MGMT_HDR_SIZE) {
+	while (data->offset >= MGMT_HDR_SIZE) {
 		struct mgmt_hdr *hdr = (struct mgmt_hdr *) data->buf;
 		uint16_t pktlen = le16_to_cpu(hdr->len);
+		uint16_t opcode, index;
 
-		if (data->offset > pktlen + MGMT_HDR_SIZE) {
-			uint16_t opcode = le16_to_cpu(hdr->opcode);
-			uint16_t index = le16_to_cpu(hdr->index);
+		if (data->offset < pktlen + MGMT_HDR_SIZE)
+			return;
 
-			packet_monitor(NULL, NULL, index, opcode,
+		opcode = le16_to_cpu(hdr->opcode);
+		index = le16_to_cpu(hdr->index);
+
+		packet_monitor(NULL, NULL, index, opcode,
 					data->buf + MGMT_HDR_SIZE, pktlen);
 
-			data->offset -= pktlen + MGMT_HDR_SIZE;
+		data->offset -= pktlen + MGMT_HDR_SIZE;
 
-			if (data->offset > 0)
-				memmove(data->buf, data->buf +
-					 MGMT_HDR_SIZE + pktlen, data->offset);
-		}
+		if (data->offset > 0)
+			memmove(data->buf, data->buf + MGMT_HDR_SIZE + pktlen,
+								data->offset);
 	}
 }
 
@@ -1155,6 +1162,202 @@ void control_server(const char *path)
 	}
 
 	server_fd = fd;
+}
+
+static bool parse_drops(uint8_t **data, uint8_t *len, uint8_t *drops,
+							uint32_t *total)
+{
+	if (*len < 1)
+		return false;
+
+	*drops = **data;
+	*total += *drops;
+	(*data)++;
+	(*len)--;
+
+	return true;
+}
+
+static bool tty_parse_header(uint8_t *hdr, uint8_t len, struct timeval **tv,
+				struct timeval *ctv, uint32_t *drops)
+{
+	uint8_t cmd = 0;
+	uint8_t evt = 0;
+	uint8_t acl_tx = 0;
+	uint8_t acl_rx = 0;
+	uint8_t sco_tx = 0;
+	uint8_t sco_rx = 0;
+	uint8_t other = 0;
+	uint32_t total = 0;
+	uint32_t ts32;
+
+	while (len) {
+		uint8_t type = hdr[0];
+
+		hdr++; len--;
+
+		switch (type) {
+		case TTY_EXTHDR_COMMAND_DROPS:
+			if (!parse_drops(&hdr, &len, &cmd, &total))
+				return false;
+			break;
+		case TTY_EXTHDR_EVENT_DROPS:
+			if (!parse_drops(&hdr, &len, &evt, &total))
+				return false;
+			break;
+		case TTY_EXTHDR_ACL_TX_DROPS:
+			if (!parse_drops(&hdr, &len, &acl_tx, &total))
+				return false;
+			break;
+		case TTY_EXTHDR_ACL_RX_DROPS:
+			if (!parse_drops(&hdr, &len, &acl_rx, &total))
+				return false;
+			break;
+		case TTY_EXTHDR_SCO_TX_DROPS:
+			if (!parse_drops(&hdr, &len, &sco_tx, &total))
+				return false;
+			break;
+		case TTY_EXTHDR_SCO_RX_DROPS:
+			if (!parse_drops(&hdr, &len, &sco_rx, &total))
+				return false;
+			break;
+		case TTY_EXTHDR_OTHER_DROPS:
+			if (!parse_drops(&hdr, &len, &other, &total))
+				return false;
+			break;
+		case TTY_EXTHDR_TS32:
+			if (len < sizeof(ts32))
+				return false;
+			ts32 = get_le32(hdr);
+			hdr += sizeof(ts32); len -= sizeof(ts32);
+			/* ts32 is in units of 1/10th of a millisecond */
+			ctv->tv_sec = ts32 / 10000;
+			ctv->tv_usec = (ts32 % 10000) * 100;
+			*tv = ctv;
+			break;
+		default:
+			printf("Unknown extended header type %u\n", type);
+			return false;
+		}
+	}
+
+	if (total) {
+		*drops += total;
+		printf("* Drops: cmd %u evt %u acl_tx %u acl_rx %u sco_tx %u "
+			"sco_rx %u other %u\n", cmd, evt, acl_tx, acl_rx,
+			sco_tx, sco_rx, other);
+	}
+
+	return true;
+}
+
+static void tty_callback(int fd, uint32_t events, void *user_data)
+{
+	struct control_data *data = user_data;
+	ssize_t len;
+
+	if (events & (EPOLLERR | EPOLLHUP)) {
+		mainloop_remove_fd(data->fd);
+		return;
+	}
+
+	len = read(data->fd, data->buf + data->offset,
+					sizeof(data->buf) - data->offset);
+	if (len < 0)
+		return;
+
+	data->offset += len;
+
+	while (data->offset >= sizeof(struct tty_hdr)) {
+		struct tty_hdr *hdr = (struct tty_hdr *) data->buf;
+		uint16_t pktlen, opcode, data_len;
+		struct timeval *tv = NULL;
+		struct timeval ctv;
+		uint32_t drops = 0;
+
+		data_len = le16_to_cpu(hdr->data_len);
+
+		if (data->offset < 2 + data_len)
+			return;
+
+		if (data->offset < sizeof(*hdr) + hdr->hdr_len) {
+			fprintf(stderr, "Received corrupted data from TTY\n");
+			memmove(data->buf, data->buf + 2 + data_len,
+								data->offset);
+			return;
+		}
+
+		if (!tty_parse_header(hdr->ext_hdr, hdr->hdr_len,
+							&tv, &ctv, &drops))
+			fprintf(stderr, "Unable to parse extended header\n");
+
+		opcode = le16_to_cpu(hdr->opcode);
+		pktlen = data_len - 4 - hdr->hdr_len;
+
+		btsnoop_write_hci(btsnoop_file, tv, 0, opcode, drops,
+					hdr->ext_hdr + hdr->hdr_len, pktlen);
+		packet_monitor(tv, NULL, 0, opcode,
+					hdr->ext_hdr + hdr->hdr_len, pktlen);
+
+		data->offset -= 2 + data_len;
+
+		if (data->offset > 0)
+			memmove(data->buf, data->buf + 2 + data_len,
+								data->offset);
+	}
+}
+
+int control_tty(const char *path, unsigned int speed)
+{
+	struct control_data *data;
+	struct termios ti;
+	int fd, err;
+
+	fd = open(path, O_RDWR | O_NOCTTY | O_NONBLOCK);
+	if (fd < 0) {
+		err = -errno;
+		perror("Failed to open serial port");
+		return err;
+	}
+
+	if (tcflush(fd, TCIOFLUSH) < 0) {
+		err = -errno;
+		perror("Failed to flush serial port");
+		close(fd);
+		return err;
+	}
+
+	memset(&ti, 0, sizeof(ti));
+	/* Switch TTY to raw mode */
+	cfmakeraw(&ti);
+
+	ti.c_cflag |= (CLOCAL | CREAD);
+	ti.c_cflag &= ~CRTSCTS;
+
+	cfsetspeed(&ti, speed);
+
+	if (tcsetattr(fd, TCSANOW, &ti) < 0) {
+		err = -errno;
+		perror("Failed to set serial port settings");
+		close(fd);
+		return err;
+	}
+
+	printf("--- %s opened ---\n", path);
+
+	data = malloc(sizeof(*data));
+	if (!data) {
+		close(fd);
+		return -ENOMEM;
+	}
+
+	memset(data, 0, sizeof(*data));
+	data->channel = HCI_CHANNEL_MONITOR;
+	data->fd = fd;
+
+	mainloop_add_fd(data->fd, EPOLLIN, tty_callback, data, free_data);
+
+	return 0;
 }
 
 bool control_writer(const char *path)

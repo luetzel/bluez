@@ -419,7 +419,8 @@ static void populate_gap_service(struct server *server)
 	bt_uuid16_create(&uuid, GATT_CHARAC_DEVICE_NAME);
 	gatt_db_service_add_characteristic(service, &uuid,
 					BT_ATT_PERM_READ | BT_ATT_PERM_WRITE,
-					BT_GATT_CHRC_PROP_READ,
+					BT_GATT_CHRC_PROP_READ |
+					BT_GATT_CHRC_PROP_EXT_PROP,
 					gap_device_name_read_cb,
 					gap_device_name_write_cb,
 					server);
@@ -931,18 +932,20 @@ static void print_chrc(struct gatt_db_attribute *attr, void *user_data)
 {
 	uint16_t handle, value_handle;
 	uint8_t properties;
+	uint16_t ext_prop;
 	bt_uuid_t uuid;
 
 	if (!gatt_db_attribute_get_char_data(attr, &handle,
 								&value_handle,
 								&properties,
+								&ext_prop,
 								&uuid))
 		return;
 
 	printf("\t  " COLOR_YELLOW "charac" COLOR_OFF
-					" - start: 0x%04x, value: 0x%04x, "
-					"props: 0x%02x, uuid: ",
-					handle, value_handle, properties);
+				" - start: 0x%04x, value: 0x%04x, "
+				"props: 0x%02x, ext_prop: 0x%04x, uuid: ",
+				handle, value_handle, properties, ext_prop);
 	print_uuid(&uuid);
 
 	gatt_db_service_foreach_desc(attr, print_desc, NULL);

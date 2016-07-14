@@ -80,7 +80,7 @@ include_HEADERS += $(lib_headers)
 lib_LTLIBRARIES += lib/libbluetooth.la
 
 lib_libbluetooth_la_SOURCES = $(lib_headers) $(lib_sources)
-lib_libbluetooth_la_LDFLAGS = $(AM_LDFLAGS) -version-info 21:11:18
+lib_libbluetooth_la_LDFLAGS = $(AM_LDFLAGS) -version-info 21:12:18
 lib_libbluetooth_la_DEPENDENCIES = $(local_headers)
 endif
 
@@ -118,7 +118,8 @@ shared_sources = src/shared/io.h src/shared/timeout.h \
 			src/shared/gatt-client.h src/shared/gatt-client.c \
 			src/shared/gatt-server.h src/shared/gatt-server.c \
 			src/shared/gatt-db.h src/shared/gatt-db.c \
-			src/shared/gap.h src/shared/gap.c
+			src/shared/gap.h src/shared/gap.c \
+			src/shared/tty.h
 
 src_libshared_glib_la_SOURCES = $(shared_sources) \
 				src/shared/io-glib.c \
@@ -260,6 +261,8 @@ EXTRA_DIST += doc/obex-api.txt doc/obex-agent-api.txt
 
 EXTRA_DIST += doc/pics-opp.txt doc/pixit-opp.txt \
 		doc/pts-opp.txt
+
+EXTRA_DIST += doc/btsnoop.txt
 
 EXTRA_DIST += tools/magic.btsnoop
 
