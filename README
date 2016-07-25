@@ -25,6 +25,9 @@ In order to compile Bluetooth utilities you need following software packages:
 	- udev library (optional)
 	- readline (command line clients)
 
+If you are going to use BlueZ with gnome-bluetooth and/or kde bluedevil, apply the following patch:
+	patch -Np1 -i patch/bluez-5.41-obexd_without_systemd-1.patch
+
 To configure on a Raspberry Pi run:
 	./configure --prefix=/usr --mandir=/usr/share/man --sysconfdir=/etc \
                          --localstatedir=/var --enable-sixaxis
