@@ -62,8 +62,6 @@ struct scan {
 	guint refresh_cb_id;
 };
 
-static GSList *devices;
-
 static void scan_free(struct scan *scan)
 {
 	bt_gatt_client_unregister_notify(scan->client, scan->refresh_cb_id);
@@ -71,14 +69,6 @@ static void scan_free(struct scan *scan)
 	bt_gatt_client_unref(scan->client);
 	btd_device_unref(scan->device);
 	g_free(scan);
-}
-
-static int cmp_device(gconstpointer a, gconstpointer b)
-{
-	const struct scan *scan = a;
-	const struct btd_device *device = b;
-
-	return scan->device == device ? 0 : -1;
 }
 
 static void write_scan_params(struct scan *scan)
@@ -175,32 +165,31 @@ static void foreach_scan_param_service(struct gatt_db_attribute *attr,
 	gatt_db_service_foreach_char(scan->attr, handle_characteristic, scan);
 }
 
+static void scan_reset(struct scan *scan)
+{
+	scan->attr = NULL;
+	gatt_db_unref(scan->db);
+	scan->db = NULL;
+	bt_gatt_client_unref(scan->client);
+	scan->client = NULL;
+}
+
 static int scan_param_accept(struct btd_service *service)
 {
 	struct btd_device *device = btd_service_get_device(service);
 	struct gatt_db *db = btd_device_get_gatt_db(device);
 	struct bt_gatt_client *client = btd_device_get_gatt_client(device);
 	bt_uuid_t scan_parameters_uuid;
-	struct scan *scan;
-	GSList *l;
+	struct scan *scan = btd_service_get_user_data(service);
 	char addr[18];
 
 	ba2str(device_get_address(device), addr);
 	DBG("Scan Parameters Client Driver profile accept (%s)", addr);
 
-	l = g_slist_find_custom(devices, device, cmp_device);
-	if (!l) {
+	if (!scan) {
 		error("Scan Parameters service not handled by profile");
 		return -1;
 	}
-
-	scan = l->data;
-
-	/* Clean-up any old client/db and acquire the new ones */
-	scan->attr = NULL;
-	gatt_db_unref(scan->db);
-	bt_gatt_client_unref(scan->client);
-
 
 	scan->db = gatt_db_ref(db);
 	scan->client = bt_gatt_client_ref(client);
@@ -209,6 +198,25 @@ static int scan_param_accept(struct btd_service *service)
 	gatt_db_foreach_service(db, &scan_parameters_uuid,
 					foreach_scan_param_service, scan);
 
+	if (!scan->attr) {
+		error("Scan Parameters attribute not found");
+		scan_reset(scan);
+		return -1;
+	}
+
+	btd_service_connecting_complete(service, 0);
+
+	return 0;
+}
+
+static int scan_param_disconnect(struct btd_service *service)
+{
+	struct scan *scan = btd_service_get_user_data(service);
+
+	scan_reset(scan);
+
+	btd_service_disconnecting_complete(service, 0);
+
 	return 0;
 }
 
@@ -216,21 +224,17 @@ static void scan_param_remove(struct btd_service *service)
 {
 	struct btd_device *device = btd_service_get_device(service);
 	struct scan *scan;
-	GSList *l;
 	char addr[18];
 
 	ba2str(device_get_address(device), addr);
 	DBG("GAP profile remove (%s)", addr);
 
-	l = g_slist_find_custom(devices, device, cmp_device);
-	if (!l) {
+	scan = btd_service_get_user_data(service);
+	if (!scan) {
 		error("GAP service not handled by profile");
 		return;
 	}
 
-	scan = l->data;
-
-	devices = g_slist_remove(devices, scan);
 	scan_free(scan);
 }
 
@@ -238,16 +242,15 @@ static int scan_param_probe(struct btd_service *service)
 {
 	struct btd_device *device = btd_service_get_device(service);
 	struct scan *scan;
-	GSList *l;
 	char addr[18];
 
 	ba2str(device_get_address(device), addr);
 	DBG("Scan Parameters Client Driver profile probe (%s)", addr);
 
 	/* Ignore, if we were probed for this device already */
-	l = g_slist_find_custom(devices, device, cmp_device);
-	if (l) {
-		error("Profile probed twice for the same device!");
+	scan = btd_service_get_user_data(service);
+	if (scan) {
+		error("Profile probed twice for the same service!");
 		return -1;
 	}
 
@@ -256,7 +259,7 @@ static int scan_param_probe(struct btd_service *service)
 		return -1;
 
 	scan->device = btd_device_ref(device);
-	devices = g_slist_append(devices, scan);
+	btd_service_set_user_data(service, scan);
 	return 0;
 }
 
@@ -266,6 +269,7 @@ static struct btd_profile scan_profile = {
 	.device_probe = scan_param_probe,
 	.device_remove = scan_param_remove,
 	.accept = scan_param_accept,
+	.disconnect = scan_param_disconnect,
 };
 
 static int scan_param_init(void)

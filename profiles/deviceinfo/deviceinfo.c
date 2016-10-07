@@ -111,17 +111,17 @@ static void foreach_deviceinfo_service(struct gatt_db_attribute *attr,
 	gatt_db_service_foreach_char(attr, handle_characteristic, device);
 }
 
-static int deviceinfo_driver_probe(struct btd_service *service)
+static int deviceinfo_probe(struct btd_service *service)
 {
 	return 0;
 }
 
-static void deviceinfo_driver_remove(struct btd_service *service)
+static void deviceinfo_remove(struct btd_service *service)
 {
 }
 
 
-static int deviceinfo_driver_accept(struct btd_service *service)
+static int deviceinfo_accept(struct btd_service *service)
 {
 	struct btd_device *device = btd_service_get_device(service);
 	struct gatt_db *db = btd_device_get_gatt_db(device);
@@ -136,6 +136,15 @@ static int deviceinfo_driver_accept(struct btd_service *service)
 	gatt_db_foreach_service(db, &deviceinfo_uuid,
 					foreach_deviceinfo_service, device);
 
+	btd_service_connecting_complete(service, 0);
+
+	return 0;
+}
+
+static int deviceinfo_disconnect(struct btd_service *service)
+{
+	btd_service_disconnecting_complete(service, 0);
+
 	return 0;
 }
 
@@ -143,9 +152,10 @@ static struct btd_profile deviceinfo_profile = {
 	.name		= "deviceinfo",
 	.remote_uuid	= DEVICE_INFORMATION_UUID,
 	.external	= true,
-	.device_probe	= deviceinfo_driver_probe,
-	.device_remove	= deviceinfo_driver_remove,
-	.accept		= deviceinfo_driver_accept,
+	.device_probe	= deviceinfo_probe,
+	.device_remove	= deviceinfo_remove,
+	.accept		= deviceinfo_accept,
+	.disconnect	= deviceinfo_disconnect,
 };
 
 static int deviceinfo_init(void)

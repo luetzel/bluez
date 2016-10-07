@@ -1102,10 +1102,8 @@ static const GDBusMethodTable media_folder_methods[] = {
 };
 
 static const GDBusPropertyTable media_folder_properties[] = {
-	{ "Name", "s", get_folder_name, NULL, folder_name_exists,
-					G_DBUS_PROPERTY_FLAG_EXPERIMENTAL },
-	{ "NumberOfItems", "u", get_items, NULL, items_exists,
-					G_DBUS_PROPERTY_FLAG_EXPERIMENTAL },
+	{ "Name", "s", get_folder_name, NULL, folder_name_exists },
+	{ "NumberOfItems", "u", get_items, NULL, items_exists },
 	{ }
 };
 
@@ -1406,9 +1404,14 @@ void media_player_set_browsable(struct media_player *mp, bool enabled)
 					"Browsable");
 }
 
+bool media_player_get_browsable(struct media_player *mp)
+{
+	return mp->browsable;
+}
+
 void media_player_set_searchable(struct media_player *mp, bool enabled)
 {
-	if (mp->browsable == enabled)
+	if (mp->searchable == enabled)
 		return;
 
 	DBG("%s", enabled ? "true" : "false");
@@ -1480,12 +1483,15 @@ static DBusMessage *media_item_play(DBusConnection *conn, DBusMessage *msg,
 	struct media_item *item = data;
 	struct media_player *mp = item->player;
 	struct player_callback *cb = mp->cb;
+	const char *path;
 	int err;
 
 	if (!item->playable || !cb->cbs->play_item)
 		return btd_error_not_supported(msg);
 
-	err = cb->cbs->play_item(mp, item->path, item->uid, cb->user_data);
+	path = mp->search && mp->scope == mp->search ? "/Search" : item->path;
+
+	err = cb->cbs->play_item(mp, path, item->uid, cb->user_data);
 	if (err < 0)
 		return btd_error_failed(msg, strerror(-err));
 

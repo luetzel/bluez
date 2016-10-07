@@ -187,7 +187,7 @@ static void usage(void)
 		"Usage:\n");
 	printf("\tbtattach [options]\n");
 	printf("options:\n"
-		"\t-B, --bredr <device>   Attach BR/EDR controller\n"
+		"\t-B, --bredr <device>   Attach Primary controller\n"
 		"\t-A, --amp <device>     Attach AMP controller\n"
 		"\t-P, --protocol <proto> Specify protocol type\n"
 		"\t-S, --speed <baudrate> Specify which baudrate to use\n"
@@ -217,6 +217,9 @@ static const struct {
 	{ "intel", HCI_UART_INTEL },
 	{ "bcm",   HCI_UART_BCM   },
 	{ "qca",   HCI_UART_QCA   },
+	{ "ag6xx", HCI_UART_AG6XX },
+	{ "nokia", HCI_UART_NOKIA },
+	{ "mrvl",  HCI_UART_MRVL  },
 	{ }
 };
 
@@ -300,7 +303,7 @@ int main(int argc, char *argv[])
 		unsigned long flags;
 		int fd;
 
-		printf("Attaching BR/EDR controller to %s\n", bredr_path);
+		printf("Attaching Primary controller to %s\n", bredr_path);
 
 		flags = (1 << HCI_UART_RESET_ON_INIT);
 

@@ -315,8 +315,6 @@ static void report_value_cb(const guint8 *pdu, guint16 len, gpointer user_data)
 		error("bt_uhid_send: %s (%d)", strerror(-err), -err);
 		return;
 	}
-
-	DBG("HoG report (%u bytes)", ev.u.input.size);
 }
 
 static void report_ccc_written_cb(guint8 status, const guint8 *pdu,
@@ -1020,7 +1018,7 @@ static void report_map_read_cb(guint8 status, const guint8 *pdu, guint16 plen,
 		return;
 	}
 
-	strcpy((char *) ev.u.create.name, hog->name);
+	strncpy((char *) ev.u.create.name, hog->name, sizeof(ev.u.create.name));
 	ev.u.create.vendor = hog->vendor;
 	ev.u.create.product = hog->product;
 	ev.u.create.version = hog->version;

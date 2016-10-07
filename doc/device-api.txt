@@ -21,6 +21,20 @@ Methods		void Connect()
 			If at least one profile was connected successfully this
 			method will indicate success.
 
+			For dual-mode devices only one bearer is connected at
+			time, the conditions are in the following order:
+
+				1. Connect the disconnected bearer if already
+				connected.
+
+				2. Connect first the bonded bearer. If no
+				bearers are bonded or both are skip and check
+				latest seen bearer.
+
+				3. Connect last seen bearer, in case the
+				timestamps are the same BR/EDR takes
+				precedence.
+
 			Possible errors: org.bluez.Error.NotReady
 					 org.bluez.Error.Failed
 					 org.bluez.Error.InProgress
@@ -196,7 +210,7 @@ Properties	string Address [readonly]
 			Received Signal Strength Indicator of the remote
 			device (inquiry or advertising).
 
-		int16 TxPower [readonly, optional, experimental]
+		int16 TxPower [readonly, optional]
 
 			Advertised transmitted power level (inquiry or
 			advertising).
@@ -212,7 +226,7 @@ Properties	string Address [readonly]
 			Service advertisement data. Keys are the UUIDs in
 			string format followed by its byte array value.
 
-		bool ServicesResolved [readonly, experimental]
+		bool ServicesResolved [readonly]
 
 			Indicate whether or not service discovery has been
 			resolved.

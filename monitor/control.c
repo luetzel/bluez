@@ -57,6 +57,7 @@
 
 static struct btsnoop *btsnoop_file = NULL;
 static bool hcidump_fallback = false;
+static bool decode_control = true;
 
 struct control_data {
 	uint16_t channel;
@@ -797,6 +798,9 @@ static void mgmt_advertising_removed(uint16_t len, const void *buf)
 
 void control_message(uint16_t opcode, const void *data, uint16_t size)
 {
+	if (!decode_control)
+		return;
+
 	switch (opcode) {
 	case MGMT_EV_INDEX_ADDED:
 		mgmt_index_added(size, data);
@@ -1449,4 +1453,9 @@ int control_tracing(void)
 	open_channel(HCI_CHANNEL_CONTROL);
 
 	return 0;
+}
+
+void control_disable_decoding(void)
+{
+	decode_control = false;
 }

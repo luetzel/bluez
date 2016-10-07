@@ -149,6 +149,10 @@ struct device_state {
 	struct queue *ccc_states;
 };
 
+typedef uint8_t (*btd_gatt_database_ccc_write_t) (uint16_t value,
+							void *user_data);
+typedef void (*btd_gatt_database_destroy_t) (void *data);
+
 struct ccc_state {
 	uint16_t handle;
 	uint8_t value[2];
@@ -827,28 +831,6 @@ service_add_ccc(struct gatt_db_attribute *service,
 	return ccc;
 }
 
-struct gatt_db_attribute *
-btd_gatt_database_add_ccc(struct btd_gatt_database *database,
-				uint16_t service_handle,
-				btd_gatt_database_ccc_write_t write_callback,
-				void *user_data,
-				btd_gatt_database_destroy_t destroy)
-{
-	struct gatt_db_attribute *service;
-
-	if (!database || !service_handle)
-		return NULL;
-
-	service = gatt_db_get_attribute(database->db, service_handle);
-	if (!service) {
-		error("No service exists with handle: 0x%04x", service_handle);
-		return NULL;
-	}
-
-	return service_add_ccc(service, database, write_callback, user_data,
-								destroy);
-}
-
 static void populate_gatt_service(struct btd_gatt_database *database)
 {
 	bt_uuid_t uuid;
@@ -897,6 +879,7 @@ static void send_notification_to_device(void *data, void *user_data)
 	struct notify *notify = user_data;
 	struct ccc_state *ccc;
 	struct btd_device *device;
+	struct bt_gatt_server *server;
 
 	ccc = find_ccc_state(device_state, notify->ccc_handle);
 	if (!ccc)
@@ -909,7 +892,14 @@ static void send_notification_to_device(void *data, void *user_data)
 						&device_state->bdaddr,
 						device_state->bdaddr_type);
 	if (!device)
+		goto remove;
+
+	server = btd_device_get_gatt_server(device);
+	if (!server) {
+		if (!device_is_paired(device, device_state->bdaddr_type))
+			goto remove;
 		return;
+	}
 
 	/*
 	 * TODO: If the device is not connected but bonded, send the
@@ -917,19 +907,23 @@ static void send_notification_to_device(void *data, void *user_data)
 	 */
 	if (!notify->indicate) {
 		DBG("GATT server sending notification");
-		bt_gatt_server_send_notification(
-					btd_device_get_gatt_server(device),
+		bt_gatt_server_send_notification(server,
 					notify->handle, notify->value,
 					notify->len);
 		return;
 	}
 
 	DBG("GATT server sending indication");
-	bt_gatt_server_send_indication(btd_device_get_gatt_server(device),
-							notify->handle,
-							notify->value,
+	bt_gatt_server_send_indication(server, notify->handle, notify->value,
 							notify->len, conf_cb,
 							NULL, NULL);
+
+	return;
+
+remove:
+	/* Remove device state if device no longer exists or is not paired */
+	if (queue_remove(notify->database->device_states, device_state))
+		device_state_free(device_state);
 }
 
 static void send_notification_to_devices(struct btd_gatt_database *database,
@@ -2579,11 +2573,11 @@ static DBusMessage *manager_unregister_app(DBusConnection *conn,
 }
 
 static const GDBusMethodTable manager_methods[] = {
-	{ GDBUS_EXPERIMENTAL_ASYNC_METHOD("RegisterApplication",
-			GDBUS_ARGS({ "application", "o" },
-			{ "options", "a{sv}" }), NULL,
-			manager_register_app) },
-	{ GDBUS_EXPERIMENTAL_ASYNC_METHOD("UnregisterApplication",
+	{ GDBUS_ASYNC_METHOD("RegisterApplication",
+					GDBUS_ARGS({ "application", "o" },
+						{ "options", "a{sv}" }),
+					NULL, manager_register_app) },
+	{ GDBUS_ASYNC_METHOD("UnregisterApplication",
 					GDBUS_ARGS({ "application", "o" }),
 					NULL, manager_unregister_app) },
 	{ }

@@ -705,10 +705,12 @@ attrib_gatttool_OBJECTS = $(am_attrib_gatttool_OBJECTS)
 @READLINE_TRUE@	lib/libbluetooth-internal.la \
 @READLINE_TRUE@	src/libshared-glib.la
 am__client_bluetoothctl_SOURCES_DIST = client/main.c client/display.h \
-	client/display.c client/agent.h client/agent.c client/gatt.h \
+	client/display.c client/agent.h client/agent.c \
+	client/advertising.h client/advertising.c client/gatt.h \
 	client/gatt.c monitor/uuid.h monitor/uuid.c
 @CLIENT_TRUE@am_client_bluetoothctl_OBJECTS = client/main.$(OBJEXT) \
 @CLIENT_TRUE@	client/display.$(OBJEXT) client/agent.$(OBJEXT) \
+@CLIENT_TRUE@	client/advertising.$(OBJEXT) \
 @CLIENT_TRUE@	client/gatt.$(OBJEXT) monitor/uuid.$(OBJEXT)
 client_bluetoothctl_OBJECTS = $(am_client_bluetoothctl_OBJECTS)
 @CLIENT_TRUE@client_bluetoothctl_DEPENDENCIES =  \
@@ -2267,7 +2269,7 @@ extra_sources = lib/uuid.c
 local_headers = $(foreach file,$(lib_headers), lib/bluetooth/$(notdir $(file)))
 BUILT_SOURCES = $(local_headers) src/builtin.h obexd/src/builtin.h
 @LIBRARY_TRUE@lib_libbluetooth_la_SOURCES = $(lib_headers) $(lib_sources)
-@LIBRARY_TRUE@lib_libbluetooth_la_LDFLAGS = $(AM_LDFLAGS) -version-info 21:13:18
+@LIBRARY_TRUE@lib_libbluetooth_la_LDFLAGS = $(AM_LDFLAGS) -version-info 21:14:18
 @LIBRARY_TRUE@lib_libbluetooth_la_DEPENDENCIES = $(local_headers)
 lib_libbluetooth_internal_la_SOURCES = $(lib_headers) $(lib_sources) \
 					$(extra_headers) $(extra_sources)
@@ -2439,6 +2441,8 @@ unit_tests = $(am__append_35) unit/test-eir unit/test-uuid \
 @CLIENT_TRUE@client_bluetoothctl_SOURCES = client/main.c \
 @CLIENT_TRUE@					client/display.h client/display.c \
 @CLIENT_TRUE@					client/agent.h client/agent.c \
+@CLIENT_TRUE@					client/advertising.h \
+@CLIENT_TRUE@					client/advertising.c \
 @CLIENT_TRUE@					client/gatt.h client/gatt.c \
 @CLIENT_TRUE@					monitor/uuid.h monitor/uuid.c
 
@@ -3982,6 +3986,8 @@ client/main.$(OBJEXT): client/$(am__dirstamp) \
 	client/$(DEPDIR)/$(am__dirstamp)
 client/agent.$(OBJEXT): client/$(am__dirstamp) \
 	client/$(DEPDIR)/$(am__dirstamp)
+client/advertising.$(OBJEXT): client/$(am__dirstamp) \
+	client/$(DEPDIR)/$(am__dirstamp)
 client/gatt.$(OBJEXT): client/$(am__dirstamp) \
 	client/$(DEPDIR)/$(am__dirstamp)
 monitor/$(am__dirstamp):
@@ -5296,6 +5302,7 @@ distclean-compile:
 @AMDEP_TRUE@@am__include@ @am__quote@btio/$(DEPDIR)/bluetoothd-btio.Po@am__quote@
 @AMDEP_TRUE@@am__include@ @am__quote@btio/$(DEPDIR)/btio.Po@am__quote@
 @AMDEP_TRUE@@am__include@ @am__quote@btio/$(DEPDIR)/obexd-btio.Po@am__quote@
+@AMDEP_TRUE@@am__include@ @am__quote@client/$(DEPDIR)/advertising.Po@am__quote@
 @AMDEP_TRUE@@am__include@ @am__quote@client/$(DEPDIR)/agent.Po@am__quote@
 @AMDEP_TRUE@@am__include@ @am__quote@client/$(DEPDIR)/display.Po@am__quote@
 @AMDEP_TRUE@@am__include@ @am__quote@client/$(DEPDIR)/gatt.Po@am__quote@

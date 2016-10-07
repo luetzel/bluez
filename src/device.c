@@ -1742,6 +1742,16 @@ static uint8_t select_conn_bearer(struct btd_device *dev)
 	time_t bredr_last = NVAL_TIME, le_last = NVAL_TIME;
 	time_t current = time(NULL);
 
+	/* Prefer bonded bearer in case only one is bonded */
+	if (dev->bredr_state.bonded && !dev->le_state.bonded )
+		return BDADDR_BREDR;
+	else if (!dev->bredr_state.bonded && dev->le_state.bonded)
+		return dev->bdaddr_type;
+
+	/* If the address is random it can only be connected over LE */
+	if (dev->bdaddr_type == BDADDR_LE_RANDOM)
+		return dev->bdaddr_type;
+
 	if (dev->bredr_seen) {
 		bredr_last = current - dev->bredr_seen;
 		if (bredr_last > SEEN_TRESHHOLD)
@@ -1763,7 +1773,11 @@ static uint8_t select_conn_bearer(struct btd_device *dev)
 	if (dev->le && (!dev->bredr || bredr_last == NVAL_TIME))
 		return dev->bdaddr_type;
 
-	if (bredr_last < le_last)
+	/*
+	 * Prefer BR/EDR if time is the same since it might be from an
+	 * advertisement with BR/EDR flag set.
+	 */
+	if (bredr_last <= le_last)
 		return BDADDR_BREDR;
 
 	return dev->bdaddr_type;
@@ -1775,9 +1789,18 @@ static DBusMessage *dev_connect(DBusConnection *conn, DBusMessage *msg,
 	struct btd_device *dev = user_data;
 	uint8_t bdaddr_type;
 
-	if (dev->bredr_state.connected)
-		bdaddr_type = dev->bdaddr_type;
-	else if (dev->le_state.connected && dev->bredr)
+	if (dev->bredr_state.connected) {
+		/*
+		 * Check if services have been resolved and there is at list
+		 * one connected before switching to connect LE.
+		 */
+		if (dev->bredr_state.svc_resolved &&
+			find_service_with_state(dev->services,
+						BTD_SERVICE_STATE_CONNECTED))
+			bdaddr_type = dev->bdaddr_type;
+		else
+			bdaddr_type = BDADDR_BREDR;
+	} else if (dev->le_state.connected && dev->bredr)
 		bdaddr_type = BDADDR_BREDR;
 	else
 		bdaddr_type = select_conn_bearer(dev);
@@ -2035,6 +2058,7 @@ static void store_incl(struct gatt_db_attribute *attr, void *user_data)
 
 	sprintf(handle, "%04hx", handle_num);
 
+	gatt_db_attribute_get_service_uuid(service, &uuid);
 	bt_uuid_to_string(&uuid, uuid_str, sizeof(uuid_str));
 	sprintf(value, GATT_INCLUDE_UUID_STR ":%04hx:%04hx:%s", start,
 								end, uuid_str);
@@ -2523,16 +2547,12 @@ static const GDBusPropertyTable device_properties[] = {
 						dev_property_exists_modalias },
 	{ "Adapter", "o", dev_property_get_adapter },
 	{ "ManufacturerData", "a{qv}", dev_property_get_manufacturer_data,
-				NULL, dev_property_manufacturer_data_exist,
-				G_DBUS_PROPERTY_FLAG_EXPERIMENTAL },
+				NULL, dev_property_manufacturer_data_exist },
 	{ "ServiceData", "a{sv}", dev_property_get_service_data,
-				NULL, dev_property_service_data_exist,
-				G_DBUS_PROPERTY_FLAG_EXPERIMENTAL },
+				NULL, dev_property_service_data_exist },
 	{ "TxPower", "n", dev_property_get_tx_power, NULL,
-					dev_property_exists_tx_power,
-					G_DBUS_PROPERTY_FLAG_EXPERIMENTAL },
-	{ "ServicesResolved", "b", dev_property_get_svc_resolved, NULL, NULL,
-					G_DBUS_PROPERTY_FLAG_EXPERIMENTAL },
+					dev_property_exists_tx_power },
+	{ "ServicesResolved", "b", dev_property_get_svc_resolved, NULL, NULL },
 
 	{ }
 };
@@ -4071,7 +4091,10 @@ static struct btd_service *probe_service(struct btd_device *device,
 		return NULL;
 	}
 
-	if (profile->auto_connect)
+	/* Only set auto connect if profile has set the flag and can really
+	 * accept connections.
+	 */
+	if (profile->auto_connect && profile->accept)
 		device_set_auto_connect(device, TRUE);
 
 	return service;
@@ -4541,6 +4564,18 @@ static void attio_disconnected(gpointer data, gpointer user_data)
 		attio->dcfunc(attio->user_data);
 }
 
+static void disconnect_gatt_service(gpointer data, gpointer user_data)
+{
+	struct btd_service *service = data;
+	struct btd_profile *profile = btd_service_get_profile(service);
+
+	/* Ignore if profile cannot accept connections */
+	if (!profile->accept)
+		return;
+
+	btd_service_disconnect(service);
+}
+
 static void att_disconnected_cb(int err, void *user_data)
 {
 	struct btd_device *device = user_data;
@@ -4553,6 +4588,7 @@ static void att_disconnected_cb(int err, void *user_data)
 	DBG("%s (%d)", strerror(err), err);
 
 	g_slist_foreach(device->attios, attio_disconnected, NULL);
+	g_slist_foreach(device->services, disconnect_gatt_service, NULL);
 
 	btd_gatt_client_disconnected(device->client_dbus);
 
@@ -4756,7 +4792,7 @@ bool device_attach_att(struct btd_device *dev, GIOChannel *io)
 	}
 
 	dev->att_mtu = MIN(mtu, BT_ATT_MAX_LE_MTU);
-	attrib = g_attrib_new(io, dev->att_mtu, false);
+	attrib = g_attrib_new(io, BT_ATT_DEFAULT_LE_MTU, false);
 	if (!attrib) {
 		error("Unable to create new GAttrib instance");
 		return false;
@@ -4787,11 +4823,11 @@ bool device_attach_att(struct btd_device *dev, GIOChannel *io)
 	dst = device_get_address(dev);
 	ba2str(dst, dstaddr);
 
-	gatt_client_init(dev);
-	gatt_server_init(dev, btd_gatt_database_get_db(database));
-
 	if (gatt_db_isempty(dev->db))
 		load_gatt_db(dev, srcaddr, dstaddr);
+
+	gatt_client_init(dev);
+	gatt_server_init(dev, btd_gatt_database_get_db(database));
 
 	/*
 	 * Remove the device from the connect_list and give the passive
