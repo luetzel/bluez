@@ -73,6 +73,7 @@ GSList *btd_device_get_primaries(struct btd_device *device);
 struct gatt_db *btd_device_get_gatt_db(struct btd_device *device);
 struct bt_gatt_client *btd_device_get_gatt_client(struct btd_device *device);
 struct bt_gatt_server *btd_device_get_gatt_server(struct btd_device *device);
+void *btd_device_get_attrib(struct btd_device *device);
 void btd_device_gatt_set_service_changed(struct btd_device *device,
 						uint16_t start, uint16_t end);
 bool device_attach_att(struct btd_device *dev, GIOChannel *io);
@@ -99,6 +100,7 @@ void device_set_rssi_with_delta(struct btd_device *device, int8_t rssi,
 							int8_t delta_threshold);
 void device_set_rssi(struct btd_device *device, int8_t rssi);
 void device_set_tx_power(struct btd_device *device, int8_t tx_power);
+void device_set_flags(struct btd_device *device, uint8_t flags);
 bool btd_device_is_connected(struct btd_device *dev);
 uint8_t btd_device_get_bdaddr_type(struct btd_device *dev);
 bool device_is_retrying(struct btd_device *device);
@@ -112,11 +114,11 @@ int device_bonding_attempt_retry(struct btd_device *device);
 long device_bonding_last_duration(struct btd_device *device);
 void device_bonding_restart_timer(struct btd_device *device);
 int device_request_pincode(struct btd_device *device, gboolean secure);
-int device_request_passkey(struct btd_device *device);
-int device_confirm_passkey(struct btd_device *device, uint32_t passkey,
-							uint8_t confirm_hint);
-int device_notify_passkey(struct btd_device *device, uint32_t passkey,
-							uint8_t entered);
+int device_request_passkey(struct btd_device *device, uint8_t type);
+int device_confirm_passkey(struct btd_device *device, uint8_t type,
+					int32_t passkey, uint8_t confirm_hint);
+int device_notify_passkey(struct btd_device *device, uint8_t type,
+					uint32_t passkey, uint8_t entered);
 int device_notify_pincode(struct btd_device *device, gboolean secure,
 							const char *pincode);
 void device_cancel_authentication(struct btd_device *device, gboolean aborted);
