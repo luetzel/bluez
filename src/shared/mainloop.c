@@ -283,6 +283,8 @@ static void timeout_destroy(void *user_data)
 
 	if (data->destroy)
 		data->destroy(data->user_data);
+
+	free(data);
 }
 
 static void timeout_callback(int fd, uint32_t events, void *user_data)
@@ -311,7 +313,7 @@ static inline int timeout_set(int fd, unsigned int msec)
 	itimer.it_interval.tv_sec = 0;
 	itimer.it_interval.tv_nsec = 0;
 	itimer.it_value.tv_sec = sec;
-	itimer.it_value.tv_nsec = (msec - (sec * 1000)) * 1000;
+	itimer.it_value.tv_nsec = (msec - (sec * 1000)) * 1000 * 1000;
 
 	return timerfd_settime(fd, 0, &itimer, NULL);
 }

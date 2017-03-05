@@ -1,5 +1,5 @@
 AC_PREREQ(2.60)
-AC_INIT(bluez, 5.43)
+AC_INIT(bluez, 5.44)
 
 AM_INIT_AUTOMAKE([foreign subdir-objects color-tests silent-rules
 					tar-pax no-dist-gzip dist-xz])
@@ -140,6 +140,38 @@ AC_ARG_ENABLE(test, AC_HELP_STRING([--enable-test],
 		[enable test/example scripts]), [enable_test=${enableval}])
 AM_CONDITIONAL(TEST, test "${enable_test}" = "yes")
 
+AC_ARG_ENABLE(nfc, AC_HELP_STRING([--enable-nfc],
+		[enable NFC paring]), [enable_nfc=${enableval}])
+AM_CONDITIONAL(NFC, test "${enable_nfc}" = "yes")
+
+AC_ARG_ENABLE(sap, AC_HELP_STRING([--enable-sap],
+		[enable SAP profile]), [enable_sap=${enableval}])
+AM_CONDITIONAL(SAP, test "${enable_sap}" = "yes")
+
+AC_ARG_ENABLE(a2dp, AC_HELP_STRING([--disable-a2dp],
+		[disable A2DP profile]), [enable_a2dp=${enableval}])
+AM_CONDITIONAL(A2DP, test "${enable_a2dp}" != "no")
+
+AC_ARG_ENABLE(avrcp, AC_HELP_STRING([--disable-avrcp],
+		[disable AVRCP profile]), [enable_avrcp=${enableval}])
+AM_CONDITIONAL(AVRCP, test "${enable_avrcp}" != "no")
+
+AC_ARG_ENABLE(network, AC_HELP_STRING([--disable-network],
+		[disable network profiles]), [enable_network=${enableval}])
+AM_CONDITIONAL(NETWORK, test "${enable_network}" != "no")
+
+AC_ARG_ENABLE(hid, AC_HELP_STRING([--disable-hid],
+		[disable HID profile]), [enable_hid=${enableval}])
+AM_CONDITIONAL(HID, test "${enable_hid}" != "no")
+
+AC_ARG_ENABLE(hog, AC_HELP_STRING([--disable-hog],
+		[disable HoG profile]), [enable_hog=${enableval}])
+AM_CONDITIONAL(HOG, test "${enable_hog}" != "no")
+
+AC_ARG_ENABLE(health, AC_HELP_STRING([--enable-health],
+		[enable health profiles]), [enable_health=${enableval}])
+AM_CONDITIONAL(HEALTH, test "${enable_health}" = "yes")
+
 AC_ARG_ENABLE(tools, AC_HELP_STRING([--disable-tools],
 		[disable Bluetooth tools]), [enable_tools=${enableval}])
 AM_CONDITIONAL(TOOLS, test "${enable_tools}" != "no")
@@ -179,6 +211,17 @@ AM_CONDITIONAL(HID2HCI, test "${enable_tools}" != "no" &&
 AC_ARG_ENABLE(cups, AC_HELP_STRING([--disable-cups],
                 [disable CUPS printer support]), [enable_cups=${enableval}])
 AM_CONDITIONAL(CUPS, test "${enable_cups}" != "no")
+
+AC_ARG_ENABLE(midi, AC_HELP_STRING([--enable-midi],
+                [enable MIDI support]), [enable_midi=${enableval}])
+AM_CONDITIONAL(MIDI, test "${enable_midi}" = "yes")
+
+if (test "${enable_midi}" = "yes"); then
+	PKG_CHECK_MODULES(ALSA, alsa, dummy=yes,
+				AC_MSG_ERROR(ALSA lib is required for MIDI support))
+	AC_SUBST(ALSA_CFLAGS)
+	AC_SUBST(ALSA_LIBS)
+fi
 
 AC_ARG_ENABLE(obex, AC_HELP_STRING([--disable-obex],
 		[disable OBEX profile support]), [enable_obex=${enableval}])
@@ -242,13 +285,18 @@ AC_ARG_ENABLE(manpages, AC_HELP_STRING([--enable-manpages],
 					[enable_manpages=${enableval}])
 AM_CONDITIONAL(MANPAGES, test "${enable_manpages}" = "yes")
 
+AC_ARG_ENABLE(testing, AC_HELP_STRING([--enable-testing],
+			[enable testing tools]),
+					[enable_testing=${enableval}])
+AM_CONDITIONAL(TESTING, test "${enable_testing}" = "yes")
+
 AC_ARG_ENABLE(experimental, AC_HELP_STRING([--enable-experimental],
-			[enable experimental plugins (SAP, NFC, ...)]),
+			[enable experimental tools]),
 					[enable_experimental=${enableval}])
 AM_CONDITIONAL(EXPERIMENTAL, test "${enable_experimental}" = "yes")
 
 AC_ARG_ENABLE(deprecated, AC_HELP_STRING([--enable-deprecated],
-			[enable deprecated plugins (BLE services, ...)]),
+			[enable deprecated tools]),
 					[enable_deprecated=${enableval}])
 AM_CONDITIONAL(DEPRECATED, test "${enable_deprecated}" = "yes")
 

@@ -1114,7 +1114,7 @@ static void register_notify_cb(uint16_t att_ecode, void *user_data)
 		return;
 	}
 
-	PRLOG("Registered notify handler!");
+	PRLOG("Registered notify handler!\n");
 }
 
 static void cmd_register_notify(struct client *cli, char *cmd_str)
@@ -1149,7 +1149,7 @@ static void cmd_register_notify(struct client *cli, char *cmd_str)
 		return;
 	}
 
-	PRLOG("Registering notify handler with id: %u\n", id);
+	printf("Registering notify handler with id: %u\n", id);
 }
 
 static void unregister_notify_usage(void)
@@ -1190,16 +1190,15 @@ static void cmd_unregister_notify(struct client *cli, char *cmd_str)
 
 static void set_security_usage(void)
 {
-	printf("Usage: set_security <level>\n"
+	printf("Usage: set-security <level>\n"
 		"level: 1-3\n"
 		"e.g.:\n"
-		"\tset-sec-level 2\n");
+		"\tset-security 2\n");
 }
 
 static void cmd_set_security(struct client *cli, char *cmd_str)
 {
-	char *argvbuf[1];
-	char **argv = argvbuf;
+	char *argv[2];
 	int argc = 0;
 	char *endptr = NULL;
 	int level;

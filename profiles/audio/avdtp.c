@@ -2442,10 +2442,9 @@ static int cancel_request(struct avdtp *session, int err)
 	else
 		stream = NULL;
 
-	if (stream) {
-		stream->abort_int = TRUE;
+	if (stream)
 		lsep = stream->lsep;
-	} else
+	else
 		lsep = NULL;
 
 	switch (req->signal_id) {
@@ -2490,7 +2489,7 @@ static int cancel_request(struct avdtp *session, int err)
 		if (lsep && lsep->cfm && lsep->cfm->set_configuration)
 			lsep->cfm->set_configuration(session, lsep, stream,
 							&averr, lsep->user_data);
-		goto failed;
+		break;
 	case AVDTP_DISCOVER:
 		error("Discover: %s (%d)", strerror(err), err);
 		goto failed;
@@ -2514,6 +2513,8 @@ static int cancel_request(struct avdtp *session, int err)
 		error("Unable to send abort request");
 		goto failed;
 	}
+
+	stream->abort_int = TRUE;
 
 	goto done;
 

@@ -573,8 +573,11 @@ static void print_le_conn_result(uint16_t result)
 	case 0x0009:
 		str = "Connection refused - Invalid Source CID";
 		break;
-	case 0x0010:
+	case 0x000a:
 		str = "Connection refused - Source CID already allocated";
+		break;
+	case 0x000b:
+		str = "Connection refused - unacceptable parameters";
 		break;
 	default:
 		str = "Reserved";
@@ -2671,7 +2674,7 @@ static void print_smp_oob_data(uint8_t oob_data)
 
 static void print_smp_auth_req(uint8_t auth_req)
 {
-	const char *bond, *mitm, *sc, *kp;
+	const char *bond, *mitm, *sc, *kp, *ct2;
 
 	switch (auth_req & 0x03) {
 	case 0x00:
@@ -2685,23 +2688,28 @@ static void print_smp_auth_req(uint8_t auth_req)
 		break;
 	}
 
-	if ((auth_req & 0x04))
+	if (auth_req & 0x04)
 		mitm = "MITM";
 	else
 		mitm = "No MITM";
 
-	if ((auth_req & 0x08))
+	if (auth_req & 0x08)
 		sc = "SC";
 	else
 		sc = "Legacy";
 
-	if ((auth_req & 0x10))
+	if (auth_req & 0x10)
 		kp = "Keypresses";
 	else
 		kp = "No Keypresses";
 
-	print_field("Authentication requirement: %s, %s, %s, %s (0x%2.2x)",
-						bond, mitm, sc, kp, auth_req);
+	if (auth_req & 0x20)
+		ct2 = ", CT2";
+	else
+		ct2 = "";
+
+	print_field("Authentication requirement: %s, %s, %s, %s%s (0x%2.2x)",
+					bond, mitm, sc, kp, ct2, auth_req);
 }
 
 static void print_smp_key_dist(const char *label, uint8_t dist)
