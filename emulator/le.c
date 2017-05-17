@@ -58,6 +58,10 @@
 #define MAX_RX_LEN		0x00fb
 #define MAX_RX_TIME		0x0848
 
+#define DEFAULT_ALL_PHYS	0x03
+#define DEFAULT_TX_PHYS		0x00
+#define DEFAULT_RX_PHYS		0x00
+
 struct bt_peer {
 	uint8_t  addr_type;
 	uint8_t  addr[6];
@@ -122,6 +126,10 @@ struct bt_le {
 	uint8_t  le_resolv_list_size;
 	uint8_t  le_resolv_enable;
 	uint16_t le_resolv_timeout;
+
+	uint8_t  le_default_all_phys;
+	uint8_t  le_default_tx_phys;
+	uint8_t  le_default_rx_phys;
 
 	struct bt_peer scan_cache[SCAN_CACHE_SIZE];
 	uint8_t scan_cache_count;
@@ -281,6 +289,37 @@ static void reset_defaults(struct bt_le *hci)
 	hci->commands[35] |= 0x02;	/* LE Set Address Resolution Enable */
 	hci->commands[35] |= 0x04;	/* LE Set Resolvable Private Address Timeout */
 	hci->commands[35] |= 0x08;	/* LE Read Maximum Data Length */
+	hci->commands[35] |= 0x10;	/* LE Read PHY */
+	hci->commands[35] |= 0x20;	/* LE Set Default PHY */
+	hci->commands[35] |= 0x40;	/* LE Set PHY */
+	//hci->commands[35] |= 0x80;	/* LE Enhanced Receiver Test */
+	//hci->commands[36] |= 0x01;	/* LE Enhanced Transmitter Test */
+	//hci->commands[36] |= 0x02;	/* LE Set Advertising Set Random Address */
+	//hci->commands[36] |= 0x04;	/* LE Set Extended Advertising Parameters */
+	//hci->commands[36] |= 0x08;	/* LE Set Extended Advertising Data */
+	//hci->commands[36] |= 0x10;	/* LE Set Extended Scan Response Data */
+	//hci->commands[36] |= 0x20;	/* LE Set Extended Advertising Enable */
+	//hci->commands[36] |= 0x40;	/* LE Read Maximum Advertising Data Length */
+	//hci->commands[36] |= 0x80;	/* LE Read Number of Supported Advertising Sets */
+	//hci->commands[37] |= 0x01;	/* LE Remove Advertising Set */
+	//hci->commands[37] |= 0x02;	/* LE Clear Advertising Sets */
+	//hci->commands[37] |= 0x04;	/* LE Set Periodic Advertising Parameters */
+	//hci->commands[37] |= 0x08;	/* LE Set Periodic Advertising Data */
+	//hci->commands[37] |= 0x10;	/* LE Set Periodic Advertising Enable */
+	//hci->commands[37] |= 0x20;	/* LE Set Extended Scan Parameters */
+	//hci->commands[37] |= 0x40;	/* LE Set Extended Scan Enable */
+	//hci->commands[37] |= 0x80;	/* LE Extended Create Connection */
+	//hci->commands[38] |= 0x01;	/* LE Periodic Advertising Create Sync */
+	//hci->commands[38] |= 0x02;	/* LE Periodic Advertising Create Sync Cancel */
+	//hci->commands[38] |= 0x04;	/* LE Periodic Advertising Terminate Sync */
+	//hci->commands[38] |= 0x08;	/* LE Add Device To Periodic Advertiser List */
+	//hci->commands[38] |= 0x10;	/* LE Remove Device From Periodic Advertiser List */
+	//hci->commands[38] |= 0x20;	/* LE Clear Periodic Advertiser List */
+	//hci->commands[38] |= 0x40;	/* LE Read Periodic Advertiser List Size */
+	//hci->commands[38] |= 0x80;	/* LE Read Transmit Power */
+	//hci->commands[39] |= 0x01;	/* LE Read RF Path Compensation */
+	//hci->commands[39] |= 0x02;	/* LE Write RF Path Compensation */
+	//hci->commands[39] |= 0x04;	/* LE Set Privacy Mode */
 
 	memset(hci->features, 0, sizeof(hci->features));
 	hci->features[4] |= 0x20;	/* BR/EDR Not Supported */
@@ -300,6 +339,15 @@ static void reset_defaults(struct bt_le *hci)
 	//hci->le_event_mask[1] |= 0x01;	/* LE Generate DHKey Complete */
 	//hci->le_event_mask[1] |= 0x02;	/* LE Enhanced Connection Complete */
 	//hci->le_event_mask[1] |= 0x04;	/* LE Direct Advertising Report */
+	//hci->le_event_mask[1] |= 0x08;	/* LE PHY Update Complete */
+	//hci->le_event_mask[1] |= 0x10;	/* LE Extended Advertising Report */
+	//hci->le_event_mask[1] |= 0x20;	/* LE Periodic Advertising Sync Established */
+	//hci->le_event_mask[1] |= 0x40;	/* LE Periodic Advertising Report */
+	//hci->le_event_mask[1] |= 0x80;	/* LE Periodic Advertising Sync Lost */
+	//hci->le_event_mask[2] |= 0x01;	/* LE Extended Scan Timeout */
+	//hci->le_event_mask[2] |= 0x02;	/* LE Extended Advertising Set Terminated */
+	//hci->le_event_mask[2] |= 0x04;	/* LE Scan Request Received */
+	//hci->le_event_mask[2] |= 0x08;	/* LE Channel Selection Algorithm */
 
 	hci->le_mtu = 64;
 	hci->le_max_pkt = 1;
@@ -313,6 +361,15 @@ static void reset_defaults(struct bt_le *hci)
 	hci->le_features[0] |= 0x20;	/* LE Data Packet Length Extension */
 	hci->le_features[0] |= 0x40;	/* LL Privacy */
 	hci->le_features[0] |= 0x80;	/* Extended Scanner Filter Policies */
+	hci->le_features[1] |= 0x01;	/* LE 2M PHY */
+	hci->le_features[1] |= 0x02;	/* Stable Modulation Index - Transmitter */
+	hci->le_features[1] |= 0x04;	/* Stable Modulation Index - Receiver */
+	hci->le_features[1] |= 0x08;	/* LE Coded PHY */
+	//hci->le_features[1] |= 0x10;	/* LE Extended Advertising */
+	//hci->le_features[1] |= 0x20;	/* LE Periodic Advertising */
+	hci->le_features[1] |= 0x40;	/* Channel Selection Algorithm #2 */
+	hci->le_features[1] |= 0x80;	/* LE Power Class 1 */
+	hci->le_features[2] |= 0x01;	/* Minimum Number of Used Channels Procedure */
 
 	memset(hci->le_random_addr, 0, sizeof(hci->le_random_addr));
 
@@ -369,6 +426,10 @@ static void reset_defaults(struct bt_le *hci)
 	clear_resolv_list(hci);
 	hci->le_resolv_enable = 0x00;
 	hci->le_resolv_timeout = 0x0384;	/* 900 secs or 15 minutes */
+
+	hci->le_default_all_phys = DEFAULT_ALL_PHYS;
+	hci->le_default_tx_phys = DEFAULT_TX_PHYS;
+	hci->le_default_rx_phys = DEFAULT_RX_PHYS;
 }
 
 static void clear_scan_cache(struct bt_le *hci)
@@ -671,9 +732,9 @@ static void cmd_read_local_version(struct bt_le *hci,
 	struct bt_hci_rsp_read_local_version rsp;
 
 	rsp.status = BT_HCI_ERR_SUCCESS;
-	rsp.hci_ver = 0x08;
+	rsp.hci_ver = 0x09;
 	rsp.hci_rev = cpu_to_le16(0x0000);
-	rsp.lmp_ver = 0x08;
+	rsp.lmp_ver = 0x09;
 	rsp.manufacturer = cpu_to_le16(hci->manufacturer);
 	rsp.lmp_subver = cpu_to_le16(0x0000);
 
@@ -1645,6 +1706,99 @@ static void cmd_le_read_max_data_length(struct bt_le *hci,
 							&rsp, sizeof(rsp));
 }
 
+static void cmd_le_read_phy(struct bt_le *hci, const void *data, uint8_t size)
+{
+	const struct bt_hci_cmd_le_read_phy *cmd = data;
+	struct bt_hci_rsp_le_read_phy rsp;
+
+	rsp.status = BT_HCI_ERR_SUCCESS;
+	rsp.handle = cmd->handle;
+	rsp.tx_phy = 0x01;	/* LE 1M */
+	rsp.rx_phy = 0x01;	/* LE 1M */
+
+	cmd_complete(hci, BT_HCI_CMD_LE_READ_PHY, &rsp, sizeof(rsp));
+}
+
+static void cmd_le_set_default_phy(struct bt_le *hci,
+						const void *data, uint8_t size)
+{
+	const struct bt_hci_cmd_le_set_default_phy *cmd = data;
+	uint8_t status, tx_phys, rx_phys;
+	uint8_t phys_mask;
+
+	phys_mask = (true << 0) | ((!!(hci->le_features[1] & 0x01)) << 1)
+				| ((!!(hci->le_features[1] & 0x08)) << 2);
+
+	if (cmd->all_phys > 0x03) {
+		cmd_status(hci, BT_HCI_ERR_INVALID_PARAMETERS,
+					BT_HCI_CMD_LE_SET_DEFAULT_PHY);
+		return;
+	}
+
+	/* Transmitter PHYs preferences */
+	if (!(cmd->all_phys & 0x01)) {
+		/* At least one preference bit shall be set to 1 */
+		if (!cmd->tx_phys) {
+			cmd_status(hci, BT_HCI_ERR_INVALID_PARAMETERS,
+					BT_HCI_CMD_LE_SET_DEFAULT_PHY);
+			return;
+		}
+
+		if (cmd->tx_phys & ~phys_mask) {
+			cmd_status(hci, BT_HCI_ERR_INVALID_PARAMETERS,
+					BT_HCI_CMD_LE_SET_DEFAULT_PHY);
+			return;
+		}
+
+		tx_phys = cmd->tx_phys;
+	} else
+		tx_phys = 0x00;
+
+	/* Transmitter PHYs preferences */
+	if (!(cmd->all_phys & 0x02)) {
+		/* At least one preference bit shall be set to 1 */
+		if (!cmd->rx_phys) {
+			cmd_status(hci, BT_HCI_ERR_INVALID_PARAMETERS,
+					BT_HCI_CMD_LE_SET_DEFAULT_PHY);
+			return;
+		}
+
+		if (cmd->rx_phys & ~phys_mask) {
+			cmd_status(hci, BT_HCI_ERR_INVALID_PARAMETERS,
+					BT_HCI_CMD_LE_SET_DEFAULT_PHY);
+			return;
+		}
+
+		rx_phys = cmd->rx_phys;
+	} else
+		rx_phys = 0x00;
+
+	hci->le_default_all_phys = cmd->all_phys;
+	hci->le_default_tx_phys = tx_phys;
+	hci->le_default_rx_phys = rx_phys;
+
+	status = BT_HCI_ERR_SUCCESS;
+	cmd_complete(hci, BT_HCI_CMD_LE_SET_DEFAULT_PHY,
+						&status, sizeof(status));
+}
+
+static void cmd_le_set_phy(struct bt_le *hci, const void *data, uint8_t size)
+{
+	const struct bt_hci_cmd_le_set_phy *cmd = data;
+	struct bt_hci_evt_le_phy_update_complete evt;
+
+	cmd_status(hci, BT_HCI_ERR_SUCCESS, BT_HCI_CMD_LE_SET_PHY);
+
+	evt.status = BT_HCI_ERR_SUCCESS;
+	evt.handle = cmd->handle;
+	evt.tx_phy = 0x01;	/* LE 1M */
+	evt.rx_phy = 0x01;	/* LE 1M */
+
+	if (hci->le_event_mask[1] & 0x08)
+		le_meta_event(hci, BT_HCI_EVT_LE_PHY_UPDATE_COMPLETE,
+							&evt, sizeof(evt));
+}
+
 static const struct {
 	uint16_t opcode;
 	void (*func) (struct bt_le *hci, const void *data, uint8_t size);
@@ -1732,6 +1886,12 @@ static const struct {
 				cmd_le_set_resolv_timeout, 2, true },
 	{ BT_HCI_CMD_LE_READ_MAX_DATA_LENGTH,
 				cmd_le_read_max_data_length, 0, true },
+	{ BT_HCI_CMD_LE_READ_PHY,
+				cmd_le_read_phy, 2, true },
+	{ BT_HCI_CMD_LE_SET_DEFAULT_PHY,
+				cmd_le_set_default_phy, 3, true },
+	{ BT_HCI_CMD_LE_SET_PHY,
+				cmd_le_set_phy, 7, true },
 
 	{ }
 };

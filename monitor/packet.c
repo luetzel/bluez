@@ -58,6 +58,7 @@
 #include "packet.h"
 
 #define COLOR_CHANNEL_LABEL		COLOR_WHITE
+#define COLOR_FRAME_LABEL		COLOR_WHITE
 #define COLOR_INDEX_LABEL		COLOR_WHITE
 #define COLOR_TIMESTAMP			COLOR_YELLOW
 
@@ -220,6 +221,11 @@ static uint8_t get_type(uint16_t handle)
 	return 0xff;
 }
 
+bool packet_has_filter(unsigned long filter)
+{
+	return filter_mask & filter;
+}
+
 void packet_set_filter(unsigned long filter)
 {
 	filter_mask = filter;
@@ -259,6 +265,17 @@ void packet_select_index(uint16_t index)
 
 #define print_space(x) printf("%*c", (x), ' ');
 
+#define MAX_INDEX 16
+
+struct index_data {
+	uint8_t  type;
+	uint8_t  bdaddr[6];
+	uint16_t manufacturer;
+	size_t	frame;
+};
+
+static struct index_data index_list[MAX_INDEX];
+
 static void print_packet(struct timeval *tv, struct ucred *cred, char ident,
 					uint16_t index, const char *channel,
 					const char *color, const char *label,
@@ -267,6 +284,7 @@ static void print_packet(struct timeval *tv, struct ucred *cred, char ident,
 	int col = num_columns();
 	char line[256], ts_str[96];
 	int n, ts_len = 0, ts_pos = 0, len = 0, pos = 0;
+	static size_t last_frame;
 
 	if (channel) {
 		if (use_color()) {
@@ -280,6 +298,20 @@ static void print_packet(struct timeval *tv, struct ucred *cred, char ident,
 			ts_pos += n;
 			ts_len += n;
 		}
+	} else if (index != HCI_DEV_NONE &&
+				index_list[index].frame != last_frame) {
+		if (use_color()) {
+			n = sprintf(ts_str + ts_pos, "%s", COLOR_FRAME_LABEL);
+			if (n > 0)
+				ts_pos += n;
+		}
+
+		n = sprintf(ts_str + ts_pos, " #%zu", index_list[index].frame);
+		if (n > 0) {
+			ts_pos += n;
+			ts_len += n;
+		}
+		last_frame = index_list[index].frame;
 	}
 
 	if ((filter_mask & PACKET_FILTER_SHOW_INDEX) &&
@@ -3809,16 +3841,6 @@ static int addr2str(const uint8_t *addr, char *str)
 			addr[5], addr[4], addr[3], addr[2], addr[1], addr[0]);
 }
 
-#define MAX_INDEX 16
-
-struct index_data {
-	uint8_t  type;
-	uint8_t  bdaddr[6];
-	uint16_t manufacturer;
-};
-
-static struct index_data index_list[MAX_INDEX];
-
 void packet_monitor(struct timeval *tv, struct ucred *cred,
 					uint16_t index, uint16_t opcode,
 					const void *data, uint16_t size)
@@ -3830,10 +3852,11 @@ void packet_monitor(struct timeval *tv, struct ucred *cred,
 	uint16_t manufacturer;
 	const char *ident;
 
-	if (index_filter && index_number != index)
-		return;
-
-	index_current = index;
+	if (index != HCI_DEV_NONE) {
+		if (index_filter && index_number != index)
+			return;
+		index_current = index;
+	}
 
 	if (tv && time_offset == ((time_t) -1))
 		time_offset = tv->tv_sec;
@@ -6290,6 +6313,12 @@ static void le_set_scan_parameters_cmd(const void *data, uint8_t size)
 	case 0x01:
 		str = "Ignore not in white list";
 		break;
+	case 0x02:
+		str = "Accept all advertisement, inc. directed unresolved RPA";
+		break;
+	case 0x03:
+		str = "Ignore not in white list, exc. directed unresolved RPA";
+		break;
 	default:
 		str = "Reserved";
 		break;
@@ -6710,6 +6739,141 @@ static void le_read_max_data_length_rsp(const void *data, uint8_t size)
 	print_field("Max TX time: %d", le16_to_cpu(rsp->max_tx_time));
 	print_field("Max RX octets: %d", le16_to_cpu(rsp->max_rx_len));
 	print_field("Max RX time: %d", le16_to_cpu(rsp->max_rx_time));
+}
+
+static void le_read_phy_cmd(const void *data, uint8_t size)
+{
+	const struct bt_hci_cmd_le_read_phy *cmd = data;
+
+	print_handle(cmd->handle);
+}
+
+static void print_le_phy(const char *prefix, uint8_t phy)
+{
+	const char *str;
+
+	switch (phy) {
+	case 0x01:
+		str = "LE 1M";
+		break;
+	case 0x02:
+		str = "LE 2M";
+		break;
+	case 0x03:
+		str = "LE Coded";
+		break;
+	default:
+		str = "Reserved";
+		break;
+	}
+
+	print_field("%s: %s (0x%2.2x)", prefix, str, phy);
+}
+
+static void le_read_phy_rsp(const void *data, uint8_t size)
+{
+	const struct bt_hci_rsp_le_read_phy *rsp = data;
+
+	print_status(rsp->status);
+	print_handle(rsp->handle);
+	print_le_phy("TX PHY", rsp->tx_phy);
+	print_le_phy("RX PHY", rsp->rx_phy);
+}
+
+static const struct {
+	uint8_t bit;
+	const char *str;
+} le_phys[] = {
+	{  0, "LE 1M"	},
+	{  1, "LE 2M"	},
+	{  2, "LE Coded"},
+	{ }
+};
+
+static const struct {
+	uint8_t bit;
+	const char *str;
+} le_phy_preference[] = {
+	{  0, "No TX PHY preference"	},
+	{  1, "No RX PHY preference"	},
+	{ }
+};
+
+static void print_le_phys_preference(uint8_t all_phys, uint8_t tx_phys,
+							uint8_t rx_phys)
+{
+	int i;
+	uint8_t mask = all_phys;
+
+	print_field("All PHYs preference: 0x%2.2x", all_phys);
+
+	for (i = 0; le_phy_preference[i].str; i++) {
+		if (all_phys & (((uint8_t) 1) << le_phy_preference[i].bit)) {
+			print_field("  %s", le_phy_preference[i].str);
+			mask &= ~(((uint64_t) 1) << le_phy_preference[i].bit);
+		}
+	}
+
+	if (mask)
+		print_text(COLOR_UNKNOWN_OPTIONS_BIT, "  Reserved"
+							" (0x%2.2x)", mask);
+
+	print_field("TX PHYs preference: 0x%2.2x", tx_phys);
+	mask = tx_phys;
+
+	for (i = 0; le_phys[i].str; i++) {
+		if (tx_phys & (((uint8_t) 1) << le_phys[i].bit)) {
+			print_field("  %s", le_phys[i].str);
+			mask &= ~(((uint64_t) 1) << le_phys[i].bit);
+		}
+	}
+
+	if (mask)
+		print_text(COLOR_UNKNOWN_OPTIONS_BIT, "  Reserved"
+							" (0x%2.2x)", mask);
+
+	print_field("RX PHYs preference: 0x%2.2x", rx_phys);
+	mask = rx_phys;
+
+	for (i = 0; le_phys[i].str; i++) {
+		if (rx_phys & (((uint8_t) 1) << le_phys[i].bit)) {
+			print_field("  %s", le_phys[i].str);
+			mask &= ~(((uint64_t) 1) << le_phys[i].bit);
+		}
+	}
+
+	if (mask)
+		print_text(COLOR_UNKNOWN_OPTIONS_BIT, "  Reserved"
+							" (0x%2.2x)", mask);
+}
+
+static void le_set_default_phy_cmd(const void *data, uint8_t size)
+{
+	const struct bt_hci_cmd_le_set_default_phy *cmd = data;
+
+	print_le_phys_preference(cmd->all_phys, cmd->tx_phys, cmd->rx_phys);
+}
+
+static void le_set_phy_cmd(const void *data, uint8_t size)
+{
+	const struct bt_hci_cmd_le_set_phy *cmd = data;
+	const char *str;
+
+	print_handle(cmd->handle);
+	print_le_phys_preference(cmd->all_phys, cmd->tx_phys, cmd->rx_phys);
+	switch (le16_to_cpu(cmd->phy_opts)) {
+	case 0x0001:
+		str = "S2 coding";
+		break;
+	case 0x0002:
+		str = "S8 coding";
+		break;
+	default:
+		str = "Reserved";
+		break;
+	}
+
+	print_field("PHY options preference: %s (0x%4.4x)", str, cmd->phy_opts);
 }
 
 struct opcode_data {
@@ -7407,9 +7571,14 @@ static const struct opcode_data opcode_table[] = {
 	{ 0x202f, 283, "LE Read Maximum Data Length",
 				null_cmd, 0, true,
 				le_read_max_data_length_rsp, 9, true },
-	{ 0x2030, 284, "LE Read PHY" },
-	{ 0x2031, 285, "LE Set Default PHY" },
-	{ 0x2032, 286, "LE Set PHY" },
+	{ 0x2030, 284, "LE Read PHY",
+				le_read_phy_cmd, 2, true,
+				le_read_phy_rsp, 5, true},
+	{ 0x2031, 285, "LE Set Default PHY",
+				le_set_default_phy_cmd, 3, true,
+				status_rsp, 1, true },
+	{ 0x2032, 286, "LE Set PHY",
+				le_set_phy_cmd, 7, true},
 	{ 0x2033, 287, "LE Enhanced Receiver Test" },
 	{ 0x2034, 288, "LE Enhanced Transmitter Test" },
 	{ 0x2035, 289, "LE Set Advertising Set Random Address" },
@@ -8531,6 +8700,38 @@ static void le_direct_adv_report_evt(const void *data, uint8_t size)
 		packet_hexdump(data + sizeof(*evt), size - sizeof(*evt));
 }
 
+static void le_phy_update_complete_evt(const void *data, uint8_t size)
+{
+	const struct bt_hci_evt_le_phy_update_complete *evt = data;
+
+	print_status(evt->status);
+	print_handle(evt->handle);
+	print_le_phy("TX PHY", evt->tx_phy);
+	print_le_phy("RX PHY", evt->rx_phy);
+}
+
+static void le_chan_select_alg_evt(const void *data, uint8_t size)
+{
+	const struct bt_hci_evt_le_chan_select_alg *evt = data;
+	const char *str;
+
+	print_handle(evt->handle);
+
+	switch (evt->algorithm) {
+	case 0x00:
+		str = "#1";
+		break;
+	case 0x01:
+		str = "#2";
+		break;
+	default:
+		str = "Reserved";
+		break;
+	}
+
+	print_field("Algorithm: %s (0x%2.2x)", str, evt->algorithm);
+}
+
 struct subevent_data {
 	uint8_t subevent;
 	const char *str;
@@ -8597,7 +8798,8 @@ static const struct subevent_data le_meta_event_table[] = {
 				le_enhanced_conn_complete_evt, 30, true },
 	{ 0x0b, "LE Direct Advertising Report",
 				le_direct_adv_report_evt, 1, false },
-	{ 0x0c, "LE PHY Update Complete" },
+	{ 0x0c, "LE PHY Update Complete",
+				le_phy_update_complete_evt, 5, true},
 	{ 0x0d, "LE Extended Advertising Report" },
 	{ 0x0e, "LE Periodic Advertising Sync Established" },
 	{ 0x0f, "LE Periodic Advertising Report" },
@@ -8605,7 +8807,8 @@ static const struct subevent_data le_meta_event_table[] = {
 	{ 0x11, "LE Scan Timeout" },
 	{ 0x12, "LE Advertising Set Terminated" },
 	{ 0x13, "LE Scan Request Received" },
-	{ 0x14, "LE Channel Selection Algorithm" },
+	{ 0x14, "LE Channel Selection Algorithm",
+				le_chan_select_alg_evt, 3, true},
 	{ }
 };
 
@@ -8972,6 +9175,8 @@ void packet_hci_command(struct timeval *tv, struct ucred *cred, uint16_t index,
 	char extra_str[25], vendor_str[150];
 	int i;
 
+	index_list[index].frame++;
+
 	if (size < HCI_COMMAND_HDR_SIZE) {
 		sprintf(extra_str, "(len %d)", size);
 		print_packet(tv, cred, '*', index, NULL, COLOR_ERROR,
@@ -9073,6 +9278,8 @@ void packet_hci_event(struct timeval *tv, struct ucred *cred, uint16_t index,
 	char extra_str[25];
 	int i;
 
+	index_list[index].frame++;
+
 	if (size < HCI_EVENT_HDR_SIZE) {
 		sprintf(extra_str, "(len %d)", size);
 		print_packet(tv, cred, '*', index, NULL, COLOR_ERROR,
@@ -9145,6 +9352,8 @@ void packet_hci_acldata(struct timeval *tv, struct ucred *cred, uint16_t index,
 	uint8_t flags = acl_flags(handle);
 	char handle_str[16], extra_str[32];
 
+	index_list[index].frame++;
+
 	if (size < HCI_ACL_HDR_SIZE) {
 		if (in)
 			print_packet(tv, cred, '*', index, NULL, COLOR_ERROR,
@@ -9186,6 +9395,8 @@ void packet_hci_scodata(struct timeval *tv, struct ucred *cred, uint16_t index,
 	uint16_t handle = le16_to_cpu(hdr->handle);
 	uint8_t flags = acl_flags(handle);
 	char handle_str[16], extra_str[32];
+
+	index_list[index].frame++;
 
 	if (size < HCI_SCO_HDR_SIZE) {
 		if (in)

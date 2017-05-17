@@ -2134,6 +2134,33 @@ struct bt_hci_rsp_le_read_max_data_length {
 	uint16_t max_rx_time;
 } __attribute__ ((packed));
 
+#define BT_HCI_CMD_LE_READ_PHY			0x2030
+struct bt_hci_cmd_le_read_phy {
+	uint16_t handle;
+} __attribute__((packed));
+struct bt_hci_rsp_le_read_phy {
+	uint8_t  status;
+	uint16_t handle;
+	uint8_t  tx_phy;
+	uint8_t  rx_phy;
+} __attribute__((packed));
+
+#define BT_HCI_CMD_LE_SET_DEFAULT_PHY		0x2031
+struct bt_hci_cmd_le_set_default_phy {
+	uint8_t  all_phys;
+	uint8_t  tx_phys;
+	uint8_t  rx_phys;
+} __attribute__((packed));
+
+#define BT_HCI_CMD_LE_SET_PHY			0x2032
+struct bt_hci_cmd_le_set_phy {
+	uint16_t handle;
+	uint8_t  all_phys;
+	uint8_t  tx_phys;
+	uint8_t  rx_phys;
+	uint16_t phy_opts;
+} __attribute__((packed));
+
 #define BT_HCI_EVT_INQUIRY_COMPLETE		0x01
 struct bt_hci_evt_inquiry_complete {
 	uint8_t  status;
@@ -2734,6 +2761,20 @@ struct bt_hci_evt_le_direct_adv_report {
 	uint8_t  direct_addr_type;
 	uint8_t  direct_addr[6];
 	int8_t   rssi;
+} __attribute__ ((packed));
+
+#define BT_HCI_EVT_LE_PHY_UPDATE_COMPLETE	0x0c
+struct bt_hci_evt_le_phy_update_complete {
+	uint8_t  status;
+	uint16_t handle;
+	uint8_t  tx_phy;
+	uint8_t  rx_phy;
+} __attribute__ ((packed));
+
+#define BT_HCI_EVT_LE_CHAN_SELECT_ALG		0x14
+struct bt_hci_evt_le_chan_select_alg {
+	uint16_t handle;
+	uint8_t  algorithm;
 } __attribute__ ((packed));
 
 #define BT_HCI_ERR_SUCCESS			0x00

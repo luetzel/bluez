@@ -670,7 +670,7 @@ static struct adapter *find_ctrl_by_address(GList *source, const char *address)
 
 		dbus_message_iter_get_basic(&iter, &str);
 
-		if (!strcmp(str, address))
+		if (!strcasecmp(str, address))
 			return adapter;
 	}
 
@@ -691,7 +691,7 @@ static GDBusProxy *find_proxy_by_address(GList *source, const char *address)
 
 		dbus_message_iter_get_basic(&iter, &str);
 
-		if (!strcmp(str, address))
+		if (!strcasecmp(str, address))
 			return proxy;
 	}
 
@@ -1704,7 +1704,7 @@ static void cmd_select_attribute(const char *arg)
 		return;
 	}
 
-	proxy = gatt_select_attribute(arg);
+	proxy = gatt_select_attribute(default_attr, arg);
 	if (proxy)
 		set_default_attribute(proxy);
 }
@@ -1720,7 +1720,7 @@ static struct GDBusProxy *find_attribute(const char *arg)
 		return NULL;
 	}
 
-	proxy = gatt_select_attribute(arg);
+	proxy = gatt_select_attribute(default_attr, arg);
 	if (!proxy) {
 		rl_printf("Attribute %s not available\n", arg);
 		return NULL;
@@ -1878,7 +1878,7 @@ static char *generic_generator(const char *text, int state,
 
 		dbus_message_iter_get_basic(&iter, &str);
 
-		if (!strncmp(str, text, len))
+		if (!strncasecmp(str, text, len))
 			return strdup(str);
         }
 
@@ -1910,7 +1910,7 @@ static char *ctrl_generator(const char *text, int state)
 
 		dbus_message_iter_get_basic(&iter, &str);
 
-		if (!strncmp(str, text, len))
+		if (!strncasecmp(str, text, len))
 			return strdup(str);
 	}
 
@@ -2130,9 +2130,9 @@ static const struct {
 	{ "list-attributes", "[dev]", cmd_list_attributes, "List attributes",
 							dev_generator },
 	{ "set-alias",    "<alias>",  cmd_set_alias, "Set device alias" },
-	{ "select-attribute", "<attribute>",  cmd_select_attribute,
+	{ "select-attribute", "<attribute/UUID>",  cmd_select_attribute,
 				"Select attribute", attribute_generator },
-	{ "attribute-info", "[attribute]",  cmd_attribute_info,
+	{ "attribute-info", "[attribute/UUID]",  cmd_attribute_info,
 				"Select attribute", attribute_generator },
 	{ "read",         NULL,       cmd_read, "Read attribute value" },
 	{ "write",        "<data=[xx xx ...]>", cmd_write,
@@ -2355,10 +2355,10 @@ static gboolean option_version = FALSE;
 static gboolean parse_agent(const char *key, const char *value,
 					gpointer user_data, GError **error)
 {
-	if (value)
-		auto_register_agent = g_strdup(value);
-	else
-		auto_register_agent = g_strdup("");
+	if (!value)
+		return FALSE;
+
+	auto_register_agent = g_strdup(value);
 
 	return TRUE;
 }
@@ -2366,8 +2366,7 @@ static gboolean parse_agent(const char *key, const char *value,
 static GOptionEntry options[] = {
 	{ "version", 'v', 0, G_OPTION_ARG_NONE, &option_version,
 				"Show version information and exit" },
-	{ "agent", 'a', G_OPTION_FLAG_OPTIONAL_ARG,
-				G_OPTION_ARG_CALLBACK, parse_agent,
+	{ "agent", 'a', 0, G_OPTION_ARG_CALLBACK, parse_agent,
 				"Register agent handler", "CAPABILITY" },
 	{ NULL },
 };
@@ -2384,6 +2383,8 @@ int main(int argc, char *argv[])
 	GError *error = NULL;
 	GDBusClient *client;
 	guint signal;
+
+	auto_register_agent = g_strdup("");
 
 	context = g_option_context_new(NULL);
 	g_option_context_add_main_entries(context, options, NULL);
