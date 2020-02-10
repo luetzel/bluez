@@ -38,6 +38,7 @@
 #include <sys/time.h>
 #include <sys/ioctl.h>
 #include <sys/socket.h>
+#include <linux/sockios.h>
 #include <sys/stat.h>
 
 #include "lib/bluetooth.h"
