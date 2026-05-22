@@ -222,7 +222,7 @@ static void sync_remove(struct obc_session *session)
 	g_dbus_unregister_interface(conn, path, SYNC_INTERFACE);
 }
 
-static struct obc_driver sync = {
+static struct obc_driver sync_driver = {
 	.service = "SYNC",
 	.uuid = SYNC_UUID,
 	.target = OBEX_SYNC_UUID,
@@ -241,7 +241,7 @@ int sync_init(void)
 	if (!conn)
 		return -EIO;
 
-	err = obc_driver_register(&sync);
+	err = obc_driver_register(&sync_driver);
 	if (err < 0) {
 		dbus_connection_unref(conn);
 		conn = NULL;
@@ -258,5 +258,5 @@ void sync_exit(void)
 	dbus_connection_unref(conn);
 	conn = NULL;
 
-	obc_driver_unregister(&sync);
+	obc_driver_unregister(&sync_driver);
 }

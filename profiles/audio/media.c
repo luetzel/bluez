@@ -1238,7 +1238,7 @@ static bool stop(void *user_data)
 	return media_player_send(mp, "Stop");
 }
 
-static bool pause(void *user_data)
+static bool media_player_pause(void *user_data)
 {
 	struct media_player *mp = user_data;
 
@@ -1288,7 +1288,7 @@ static struct avrcp_player_cb player_cb = {
 	.set_volume = set_volume,
 	.play = play,
 	.stop = stop,
-	.pause = pause,
+	.pause = media_player_pause,
 	.next = next,
 	.previous = previous,
 };
